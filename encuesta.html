@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Encuesta de Satisfacción</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Encuesta de Satisfacción</h1>
+        <form id="encuestaForm">
+            <div class="pregunta">
+                <p>¿Es la primera vez que nos visita?</p>
+                <div class="opciones">
+                    <label><input type="radio" name="p1" value="1" required> Si</label>
+                    <label><input type="radio" name="p1" value="2"> No</label>
+                </div>
+            </div>
+            <div class="pregunta">
+                <p>¿Encontraste lo que buscabas?</p>
+                <div class="opciones">
+                    <label><input type="radio" name="p2" value="1" required> Si</label>
+                    <label><input type="radio" name="p2" value="2"> No</label>
+                </div>
+            </div>
+            <div class="pregunta">
+                <p>¿Que tan satisfecho te encuentras con tu visita?</p>
+                <div class="opciones">
+                    <label><input type="radio" name="p3" value="5" required> Muy satisfecho</label>
+                    <label><input type="radio" name="p3" value="4"> Satisfecho</label>
+                    <label><input type="radio" name="p3" value="3"> Neutral</label>
+                    <label><input type="radio" name="p3" value="2"> Insatisfecho</label>
+                    <label><input type="radio" name="p3" value="1"> Muy insatisfecho</label>
+                </div>
+            </div>
+            <div class="pregunta">
+                    <p>¿Recomendarias la Pasteleria Shanty?</p>
+                    <div class="opciones">
+                        <label><input type="radio" name="p4" value="1" required> 1 No</label>
+                        <label><input type="radio" name="p4" value="2"> Si</label>
+                    </div>
+            </div>
+            <div class="pregunta">
+                    <p>¿Que tan amable fue contigo el vendedor?</p>
+                    <div class="opciones">
+                        <label><input type="radio" name="p5" value="1" required> 1 No</label>
+                        <label><input type="radio" name="p5" value="2"> Si</label>
+                    </div>
+            </div>
+            <div class="pregunta">
+                <p>¿Te brindo asesoría el vendedor durante tu visita?</p>
+                <div class="opciones">
+                    <label><input type="radio" name="p6" value="1" required> 1 No</label>
+                    <label><input type="radio" name="p6" value="2"> Si</label>
+                </div>
+            </div>
+            <div class="pregunta">
+                <p>¿Que tanto interés mostró el vendedor por conocer tus necesidades y deseos?</p>
+                <div class="opciones">
+                    <label><input type="radio" name="p7" value="1" required> 1 No</label>
+                    <label><input type="radio" name="p7" value="2"> Si</label>
+                </div>
+            </div>
+            <div class="pregunta">
+                <p>¿Qué tan satisfecho te encuentras con las instalaciones de Pasteleria Shanty?</p>
+                <div class="opciones">
+                    <label><input type="radio" name="p8" value="1" required> 1 No</label>
+                    <label><input type="radio" name="p8" value="2"> Si</label>
+                </div>
+            </div>
+            <div class="pregunta">
+                <p>¿Qué podríamos hacer para mejorar tu experiencia en Pastelería Shanty?</p>
+                <div class="opciones">
+                    <textarea name="sugerencias" rows="4" cols="50" placeholder="Escribe aquí tu sugerencia..." required></textarea>
+                </div>
+            </div>
+            <button type="submit">Enviar encuesta</button>
+        </form>
+    </div>
+
+    <script src="/script.js"></script>
+</body>
+</html>
