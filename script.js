@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     const registroForm = document.getElementById('registroForm');
     const encuestaForm = document.getElementById('encuestaForm');
-    const scriptURL = 'https://script.google.com/macros/s/AKfycbwQTFemL1JatyAoXSxqDp91HKfpI6vOT5yere7awveRQ9U4MRUtKsBlnEED8wkd93F_nA/exec'; // ¡REEMPLAZA CON TU URL REAL!
+    const scriptURL = https://script.google.com/macros/s/AKfycbwQTFemL1JatyAoXSxqDp91HKfpI6vOT5yere7awveRQ9U4MRUtKsBlnEED8wkd93F_nA/exec'; // ¡REEMPLAZA CON TU URL REAL!
 
     if (registroForm) {
         registroForm.addEventListener('submit', function(e) {
