@@ -21,7 +21,7 @@ if (document.getElementById('encuestaForm')) {
     
     // Crear formulario dinámico para enviar los datos
     const form = document.createElement('form');
-    form.action = GOOGLE_SCRIPT_URL;
+    form.action = "https://script.google.com/macros/s/AKfycbz7VuHS6pC5tL6Gw6u-omAvIRXdDFbCUsGjBiPsYxUUwLN5qw6qexYmCFCuH4uTkT-I/exec";
     form.method = 'POST';
     form.target = 'hiddenFrame';
     form.style.display = 'none';
