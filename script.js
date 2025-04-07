@@ -1,77 +1,85 @@
 // URL de tu Google Apps Script
-const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz7VuHS6pC5tL6Gw6u-omAvIRXdDFbCUsGjBiPsYxUUwLN5qw6qexYmCFCuH4uTkT-I/exec";
-document.addEventListener('DOMContentLoaded', function() {
-    // Manejo del formulario de registro
-    if (document.getElementById('registroForm')) {
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz7VuHS6pC5tL6Gw6u-omAvIRXdDFbCUsGjBiPsYxUUwLN5qw6qexYmCFCuH4uTkT-I/exec";
 
-        document.getElementById('registroForm').addEventListener('submit', function(e) {
-        e.preventDefault();
-        
-        // Guardar datos en sessionStorage para usarlos después
-        const formData = new FormData(this);
-        const registroData = {};
-        formData.forEach((value, key) => {
-            registroData[key] = value;
-        });
-        
-        sessionStorage.setItem('registroData', JSON.stringify(registroData));
-        
-        // Redirigir a la encuesta
-        window.location.href = 'encuesta.html';
-        });
+// Función mejorada para enviar datos
+async function sendDataToSheet(data) {
+  try {
+    // Primero hacemos una prueba GET para verificar la conexión
+    const testResponse = await fetch(SCRIPT_URL);
+    if (!testResponse.ok) {
+      throw new Error('No se pudo conectar con el servidor');
     }
     
-    // Manejo del formulario de encuesta
-    if (document.getElementById('encuestaForm')) {
-        document.getElementById('encuestaForm').addEventListener('submit', function(e) {
-        e.preventDefault();
-        
-        // Obtener datos del registro
-        const registroData = JSON.parse(sessionStorage.getItem('registroData'));
-        
-        // Obtener datos de la encuesta
-        const formData = new FormData(this);
-        const encuestaData = {};
-        formData.forEach((value, key) => {
-            encuestaData[key] = value;
-        });
-        
-        // Combinar datos
-        const allData = {...registroData, ...encuestaData};
-        
-        // Enviar a Google Sheets
-        fetch(GOOGLE_SCRIPT_URL, {
-            method: 'POST',
-            body: JSON.stringify(allData),
-            headers: {
-            'Content-Type': 'application/json'
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.result === 'success') {
-            // Guardar código de cupón y redirigir
-            sessionStorage.setItem('couponCode', data.coupon);
-            window.location.href = 'cupon.html';
-            } else {
-            alert('Error al enviar la encuesta. Por favor intenta nuevamente.');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Error al enviar la encuesta. Por favor intenta nuevamente.');
-        });
-        });
-    }
-    
-    // Mostrar cupón en la página final
-    if (document.getElementById('codigo-cupon')) {
-        const couponCode = sessionStorage.getItem('couponCode');
-        if (couponCode) {
-        document.getElementById('codigo-cupon').textContent = couponCode;
-        } else {
-        document.getElementById('contenido-cupon').style.display = 'none';
-        document.getElementById('sin-cupones').style.display = 'block';
-        }
-    }
+    // Luego hacemos el POST
+    const response = await fetch(SCRIPT_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(data),
+      redirect: 'follow' // Importante para Google Apps Script
     });
+    
+    // Verificar redirección
+    if (response.redirected) {
+      const redirectedResponse = await fetch(response.url);
+      return await redirectedResponse.json();
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Error en sendDataToSheet:', error);
+    throw error;
+  }
+}
+
+// En tu event listener de la encuesta:
+document.getElementById('encuestaForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  
+  const submitBtn = document.querySelector('#encuestaForm button[type="submit"]');
+  const originalText = submitBtn.textContent;
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Enviando...';
+  
+  try {
+    // Obtener y validar datos
+    const registroData = JSON.parse(localStorage.getItem('registroData'));
+    if (!registroData) throw new Error('Sesión expirada. Por favor comienza de nuevo.');
+    
+    const encuestaData = {
+      p1: getRadioValue('p1'),
+      // ... resto de tus campos ...
+      sugerencias: document.querySelector('textarea[name="sugerencias"]').value
+    };
+    
+    // Enviar datos
+    const result = await sendDataToSheet({...registroData, ...encuestaData});
+    
+    if (!result.success) {
+      throw new Error(result.error || 'Error al procesar la encuesta');
+    }
+    
+    // Mostrar resultado
+    showResult(result);
+    
+  } catch (error) {
+    alert(`Error: ${error.message}`);
+    submitBtn.disabled = false;
+    submitBtn.textContent = originalText;
+  }
+});
+
+// Función auxiliar para mostrar resultados
+function showResult(result) {
+  let message = '¡Gracias por tu participación!';
+  
+  if (result.cupon && result.cupon !== "CUPONES AGOTADOS") {
+    message += `\n\nTu cupón de descuento es: ${result.cupon}`;
+    message += `\nCupones restantes: ${result.quedan}`;
+  }
+  
+  alert(message);
+  localStorage.removeItem('registroData');
+  window.location.href = 'index.html';
+}
