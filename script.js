@@ -1,161 +1,128 @@
 
 // Configuración global
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz7VuHS6pC5tL6Gw6u-omAvIRXdDFbCUsGjBiPsYxUUwLN5qw6qexYmCFCuH4uTkT-I/exec";
-
-// Función para inicializar el formulario de registro
-function initRegistroForm() {
-  const registroForm = document.getElementById('registroForm');
-  
-  if (!registroForm) {
-    console.log('Formulario de registro no encontrado (página actual no es index.html)');
-    return;
+// Function to get radio button values
+function getRadioValue(name) {
+  const selected = document.querySelector(`input[name="${name}"]:checked`);
+  if (!selected) {
+    throw new Error(`Por favor responde la pregunta: ${name}`);
   }
+  return selected.value;
+}
 
-  registroForm.addEventListener('submit', function(e) {
+// Function to send data to Google Sheet
+async function sendDataToSheet(data) {
+  try {
+    // First make a test GET request to verify connection
+    const testResponse = await fetch(SCRIPT_URL);
+    if (!testResponse.ok) {
+      throw new Error('No se pudo conectar con el servidor');
+    }
+
+    // Then make the POST request
+    const response = await fetch(SCRIPT_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(data),
+      redirect: 'follow' // Important for Google Apps Script
+    });
+
+    // Check for redirection
+    if (response.redirected) {
+      const redirectedResponse = await fetch(response.url);
+      return await redirectedResponse.json();
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error en sendDataToSheet:', error);
+    throw error;
+  }
+}
+
+// Registration form handling
+if (document.getElementById('registroForm')) {
+  document.getElementById('registroForm').addEventListener('submit', function(e) {
     e.preventDefault();
-    
-    // Validar términos y condiciones
+
+    // Validate terms and conditions
     if (!document.getElementById('terminos').checked) {
       alert('Debes aceptar los términos y condiciones');
       return;
     }
 
-    // Validar campos requeridos
-    const requiredFields = ['numTicket', 'nombre', 'email', 'conociste'];
-    for (const fieldId of requiredFields) {
-      const field = document.getElementById(fieldId);
-      if (!field || !field.value.trim()) {
-        alert(`El campo ${fieldId} es obligatorio`);
-        return;
-      }
-    }
-
-    // Guardar datos
+    // Collect form data
     const formData = {
-      numTicket: document.getElementById('numTicket').value.trim(),
-      nombre: document.getElementById('nombre').value.trim(),
-      email: document.getElementById('email').value.trim(),
-      telefono: document.getElementById('telefono').value.trim(),
+      numTicket: document.getElementById('numTicket').value,
+      nombre: document.getElementById('nombre').value,
+      email: document.getElementById('email').value,
+      telefono: document.getElementById('telefono').value,
       conociste: document.getElementById('conociste').value
     };
-    
+
+    // Save data and redirect
     localStorage.setItem('registroData', JSON.stringify(formData));
     window.location.href = 'encuesta.html';
   });
 }
 
-// Función para manejar el envío de la encuesta
-async function submitEncuesta(formData) {
-  try {
-    const response = await fetch(SCRIPT_URL, {
-      method: 'POST',
-       mode: 'no-cors',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(formData)
-    });
-
-    if (!response.ok) {
-      throw new Error(`Error HTTP: ${response.status}`);
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error('Error en submitEncuesta:', error);
-    throw error;
-  }
-}
-
-// Función para inicializar el formulario de encuesta
-function initEncuestaForm() {
-  const encuestaForm = document.getElementById('encuestaForm');
-  
-  if (!encuestaForm) {
-    console.log('Formulario de encuesta no encontrado (página actual no es encuesta.html)');
-    return;
-  }
-
-  encuestaForm.addEventListener('submit', async function(e) {
+// Survey form handling
+if (document.getElementById('encuestaForm')) {
+  document.getElementById('encuestaForm').addEventListener('submit', async function(e) {
     e.preventDefault();
     
-    const submitBtn = this.querySelector('button[type="submit"]');
+    const submitBtn = document.querySelector('#encuestaForm button[type="submit"]');
     const originalText = submitBtn.textContent;
     submitBtn.disabled = true;
     submitBtn.textContent = 'Enviando...';
-    
+
     try {
-      // Obtener datos de registro
+      // Get registration data
       const registroData = JSON.parse(localStorage.getItem('registroData'));
       if (!registroData) {
-        throw new Error('Datos de registro no encontrados. Por favor comienza desde el inicio.');
+        throw new Error('Sesión expirada. Por favor comienza de nuevo.');
       }
 
-      // Validar que todas las preguntas estén respondidas
-      const encuestaData = {};
-      const preguntas = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8'];
-      
-      for (const pregunta of preguntas) {
-        encuestaData[pregunta] = getRadioValue(pregunta);
-      }
-      
-      encuestaData.sugerencias = document.querySelector('textarea[name="sugerencias"]').value.trim();
+      // Get survey responses
+      const encuestaData = {
+        p1: getRadioValue('p1'),
+        p2: getRadioValue('p2'),
+        p3: getRadioValue('p3'),
+        p4: getRadioValue('p4'),
+        p5: getRadioValue('p5'),
+        p6: getRadioValue('p6'),
+        p7: getRadioValue('p7'),
+        p8: getRadioValue('p8'),
+        sugerencias: document.querySelector('textarea[name="sugerencias"]').value
+      };
 
-      // Enviar datos
-      const result = await submitEncuesta({...registroData, ...encuestaData});
-      
+      // Combine data and send to sheet
+      const result = await sendDataToSheet({...registroData, ...encuestaData});
+
       if (!result.success) {
         throw new Error(result.error || 'Error al procesar la encuesta');
       }
 
-      // Manejar cupón
+      // Handle coupon or redirect
       if (result.cupon && result.cupon !== "CUPONES AGOTADOS") {
         localStorage.setItem('cuponData', JSON.stringify({
           codigo: result.cupon,
-          disponibles: result.quedan
+          quedan: result.quedan,
+          nombre: registroData.nombre
         }));
         window.location.href = 'cupon.html';
       } else {
         localStorage.setItem('encuestaMessage', 'Gracias por participar. Los cupones se han agotado.');
         window.location.href = 'index.html';
       }
-      
+
     } catch (error) {
-      console.error('Error al enviar encuesta:', error);
-      alert(`Error: ${error.message}\n\nPor favor intenta nuevamente.`);
+      console.error('Error:', error);
+      alert(`Error: ${error.message}`);
       submitBtn.disabled = false;
       submitBtn.textContent = originalText;
     }
   });
 }
-
-// Función auxiliar mejorada para radio buttons
-function getRadioValue(name) {
-  const selected = document.querySelector(`input[name="${name}"]:checked`);
-  if (!selected) {
-    // Hacer scroll a la pregunta no respondida
-    const preguntaElement = document.querySelector(`input[name="${name}"]`).closest('.pregunta');
-    if (preguntaElement) {
-      preguntaElement.scrollIntoView({ behavior: 'smooth' });
-      preguntaElement.style.backgroundColor = '#fff3f3';
-      setTimeout(() => {
-        preguntaElement.style.backgroundColor = '';
-      }, 2000);
-    }
-    throw new Error(`Por favor responde la pregunta: ${name}`);
-  }
-  return selected.value;
-}
-
-// Inicialización cuando el DOM esté listo
-document.addEventListener('DOMContentLoaded', function() {
-  initRegistroForm();
-  initEncuestaForm();
-  
-  // Mostrar mensaje si existe
-  const message = localStorage.getItem('encuestaMessage');
-  if (message) {
-    alert(message);
-    localStorage.removeItem('encuestaMessage');
-  }
-});
