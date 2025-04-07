@@ -1,68 +1,66 @@
 // URL de tu Google Apps Script (reemplaza con la tuya)
 const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz7VuHS6pC5tL6Gw6u-omAvIRXdDFbCUsGjBiPsYxUUwLN5qw6qexYmCFCuH4uTkT-I/exec";
-// Función para enviar datos mediante un formulario oculto
-function enviarDatos(datos) {
+
+// Envía los datos usando un FORMULARIO OCULTO (evita CORS)
+function sendDataToGoogleSheets(data) {
   return new Promise((resolve) => {
-    // Crear iframe para la respuesta
-    const iframe = document.createElement('iframe');
-    iframe.name = 'hidden-response';
-    iframe.style.display = 'none';
+    // 1. Crea un iframe invisible para recibir la respuesta
+    const iframe = document.createElement("iframe");
+    iframe.name = "hidden-iframe";
+    iframe.style.display = "none";
     
-    // Escuchar cuando cargue el iframe
+    // 2. Crea un formulario oculto
+    const form = document.createElement("form");
+    form.action = GOOGLE_SCRIPT_URL;
+    form.method = "POST";
+    form.target = "hidden-iframe";
+    form.style.display = "none";
+    
+    // 3. Agrega los datos como un input oculto
+    const input = document.createElement("input");
+    input.name = "data";
+    input.value = JSON.stringify(data);
+    form.appendChild(input);
+    
+    // 4. Escucha cuando el iframe carga la respuesta
     iframe.onload = function() {
       try {
-        const response = JSON.parse(iframe.contentDocument.body.textContent);
+        const responseText = iframe.contentDocument.body.textContent;
+        const response = JSON.parse(responseText);
         resolve(response);
-      } catch(e) {
-        resolve({ error: "Error al procesar respuesta" });
+      } catch (e) {
+        resolve({ success: false, error: "Error al leer respuesta" });
       }
     };
     
-    // Crear formulario oculto
-    const form = document.createElement('form');
-    form.action = GOOGLE_SCRIPT_URL;
-    form.method = 'POST';
-    form.target = 'hidden-response';
-    form.style.display = 'none';
-    
-    // Agregar campo con los datos
-    const input = document.createElement('input');
-    input.name = 'data';
-    input.value = JSON.stringify(datos);
-    form.appendChild(input);
-    
-    // Agregar al documento y enviar
+    // 5. Agrega el formulario e iframe al DOM y envía
     document.body.appendChild(iframe);
     document.body.appendChild(form);
     form.submit();
-    
-    // Limpiar después de 5 segundos
-    setTimeout(() => {
-      document.body.removeChild(iframe);
-      document.body.removeChild(form);
-    }, 5000);
   });
 }
 
-// Uso en tu formulario de encuesta
-document.getElementById('encuestaForm').addEventListener('submit', async function(e) {
+// Maneja el envío del formulario de encuesta
+document.getElementById("encuestaForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   
-  // Obtener datos del formulario
-  const registroData = JSON.parse(sessionStorage.getItem('registroData'));
-  const encuestaData = {};
-  new FormData(this).forEach((value, key) => encuestaData[key] = value);
+  // 1. Recopila datos del registro (guardados en sessionStorage)
+  const registroData = JSON.parse(sessionStorage.getItem("registroData"));
   
-  // Combinar datos
+  // 2. Recopila datos de la encuesta
+  const encuestaData = {};
+  new FormData(e.target).forEach((value, key) => encuestaData[key] = value);
+  
+  // 3. Combina los datos
   const allData = { ...registroData, ...encuestaData };
   
-  // Enviar y manejar respuesta
-  const response = await enviarDatos(allData);
+  // 4. Envía a Google Sheets
+  const result = await sendDataToGoogleSheets(allData);
   
-  if (response.coupon) {
-    sessionStorage.setItem('couponCode', response.coupon);
-    window.location.href = 'cupon.html';
+  if (result.success) {
+    sessionStorage.setItem("couponCode", result.coupon);
+    window.location.href = "cupon.html";
   } else {
-    alert(response.error || 'Error al enviar la encuesta');
+    alert("Error al enviar: " + (result.error || "Intenta de nuevo"));
   }
 });
