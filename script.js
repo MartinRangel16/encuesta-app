@@ -1,92 +1,99 @@
+import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
+// =============================================
+// Configuración de Firebase
+// =============================================
+const firebaseConfig = {
+  apiKey: "AIzaSyBbQ9V1EeAMFqShg_ScqO3ALE2UsGXRSjc",
+  authDomain: "encuestashanty12.firebaseapp.com",
+  projectId: "encuestashanty12",
+  storageBucket: "encuestashanty12.firebasestorage.app",
+  messagingSenderId: "692171791223",
+  appId: "1:692171791223:web:f1e799d155820ac7389f72",
+  measurementId: "G-MF4K1QHYXG"
+};
 
-// Configuración global
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz7VuHS6pC5tL6Gw6u-omAvIRXdDFbCUsGjBiPsYxUUwLN5qw6qexYmCFCuH4uTkT-I/exec";
-// Function to get radio button values
+// Inicializar Firebase
+const app = firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// =============================================
+// Funciones Auxiliares
+// =============================================
 function getRadioValue(name) {
   const selected = document.querySelector(`input[name="${name}"]:checked`);
   if (!selected) {
-    throw new Error(`Por favor responde la pregunta: ${name}`);
+    const questionElement = selected.closest('.pregunta');
+    questionElement.style.backgroundColor = '#fff3f3';
+    setTimeout(() => questionElement.style.backgroundColor = '', 2000);
+    throw new Error(`Por favor responde: ${name}`);
   }
   return selected.value;
 }
 
-// Function to send data to Google Sheet
-async function sendDataToSheet(data) {
-  try {
-    // First make a test GET request to verify connection
-    const testResponse = await fetch(SCRIPT_URL);
-    if (!testResponse.ok) {
-      throw new Error('No se pudo conectar con el servidor');
-    }
-
-    // Then make the POST request
-    const response = await fetch(SCRIPT_URL, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(data),
-      redirect: 'follow' // Important for Google Apps Script
-    });
-
-    // Check for redirection
-    if (response.redirected) {
-      const redirectedResponse = await fetch(response.url);
-      return await redirectedResponse.json();
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error('Error en sendDataToSheet:', error);
-    throw error;
-  }
+function showError(message) {
+  const errorElement = document.getElementById('error-message') || document.createElement('div');
+  errorElement.id = 'error-message';
+  errorElement.style.color = 'red';
+  errorElement.textContent = message;
+  document.body.prepend(errorElement);
 }
 
-// Registration form handling
+// =============================================
+// Manejo del Formulario de Registro (index.html)
+// =============================================
 if (document.getElementById('registroForm')) {
-  document.getElementById('registroForm').addEventListener('submit', function(e) {
+  document.getElementById('registroForm').addEventListener('submit', async (e) => {
     e.preventDefault();
+    const submitBtn = document.querySelector('#registroForm button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Registrando...';
 
-    // Validate terms and conditions
-    if (!document.getElementById('terminos').checked) {
-      alert('Debes aceptar los términos y condiciones');
-      return;
+    try {
+      const formData = {
+        numTicket: document.getElementById('numTicket').value.trim(),
+        nombre: document.getElementById('nombre').value.trim(),
+        email: document.getElementById('email').value.trim(),
+        telefono: document.getElementById('telefono').value.trim() || null,
+        conociste: document.getElementById('conociste').value,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+      };
+
+      // Validar campos obligatorios
+      if (!formData.numTicket || !formData.nombre || !formData.email) {
+        throw new Error('Todos los campos marcados como * son obligatorios');
+      }
+
+      // Guardar en Firestore
+      await db.collection('registros').add(formData);
+      
+      // Guardar datos temporalmente para la encuesta
+      localStorage.setItem('registroData', JSON.stringify(formData));
+      window.location.href = 'encuesta.html';
+
+    } catch (error) {
+      showError(error.message);
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Continuar a la encuesta';
     }
-
-    // Collect form data
-    const formData = {
-      numTicket: document.getElementById('numTicket').value,
-      nombre: document.getElementById('nombre').value,
-      email: document.getElementById('email').value,
-      telefono: document.getElementById('telefono').value,
-      conociste: document.getElementById('conociste').value
-    };
-
-    // Save data and redirect
-    localStorage.setItem('registroData', JSON.stringify(formData));
-    window.location.href = 'encuesta.html';
   });
 }
 
-// Survey form handling
+// =============================================
+// Manejo del Formulario de Encuesta (encuesta.html)
+// =============================================
 if (document.getElementById('encuestaForm')) {
-  document.getElementById('encuestaForm').addEventListener('submit', async function(e) {
+  document.getElementById('encuestaForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    
     const submitBtn = document.querySelector('#encuestaForm button[type="submit"]');
-    const originalText = submitBtn.textContent;
     submitBtn.disabled = true;
     submitBtn.textContent = 'Enviando...';
 
     try {
-      // Get registration data
       const registroData = JSON.parse(localStorage.getItem('registroData'));
-      if (!registroData) {
-        throw new Error('Sesión expirada. Por favor comienza de nuevo.');
-      }
+      if (!registroData) throw new Error('Datos de registro no encontrados');
 
-      // Get survey responses
+      // Obtener respuestas
       const encuestaData = {
         p1: getRadioValue('p1'),
         p2: getRadioValue('p2'),
@@ -96,34 +103,65 @@ if (document.getElementById('encuestaForm')) {
         p6: getRadioValue('p6'),
         p7: getRadioValue('p7'),
         p8: getRadioValue('p8'),
-        sugerencias: document.querySelector('textarea[name="sugerencias"]').value
+        sugerencias: document.querySelector('textarea[name="sugerencias"]').value.trim(),
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
       };
 
-      // Combine data and send to sheet
-      const result = await sendDataToSheet({...registroData, ...encuestaData});
+      // Usar Batch para transacción atómica
+      const batch = db.batch();
+      const encuestaRef = db.collection('encuestas').doc();
+      
+      batch.set(encuestaRef, { ...registroData, ...encuestaData });
 
-      if (!result.success) {
-        throw new Error(result.error || 'Error al procesar la encuesta');
-      }
+      // Verificar y actualizar cupones (solo si hay disponibilidad)
+      const cuponesRef = db.collection('cupones').doc('contador');
+      const cuponesDoc = await cuponesRef.get();
+      const cuponesDisponibles = cuponesDoc.data().disponibles;
 
-      // Handle coupon or redirect
-      if (result.cupon && result.cupon !== "CUPONES AGOTADOS") {
-        localStorage.setItem('cuponData', JSON.stringify({
-          codigo: result.cupon,
-          quedan: result.quedan,
-          nombre: registroData.nombre
+      if (cuponesDisponibles > 0) {
+        const cupon = "SHNT" + Math.floor(1000 + Math.random() * 9000);
+        batch.set(db.collection('cuponesGenerados').doc(encuestaRef.id), { 
+          codigo: cupon,
+          usado: false
+        });
+        batch.update(cuponesRef, { 
+          disponibles: firebase.firestore.FieldValue.increment(-1),
+          usados: firebase.firestore.FieldValue.increment(1)
+        });
+        localStorage.setItem('cuponData', JSON.stringify({ 
+          codigo: cupon, 
+          disponibles: cuponesDisponibles - 1 
         }));
-        window.location.href = 'cupon.html';
-      } else {
-        localStorage.setItem('encuestaMessage', 'Gracias por participar. Los cupones se han agotado.');
-        window.location.href = 'index.html';
       }
+
+      await batch.commit();
+      window.location.href = 'cupon.html';
 
     } catch (error) {
-      console.error('Error:', error);
-      alert(`Error: ${error.message}`);
+      showError(`Error: ${error.message}`);
       submitBtn.disabled = false;
-      submitBtn.textContent = originalText;
+      submitBtn.textContent = 'Enviar encuesta';
     }
+  });
+}
+
+// =============================================
+// Mostrar Cupón (cupon.html)
+// =============================================
+if (document.getElementById('contenido-cupon')) {
+  document.addEventListener('DOMContentLoaded', async () => {
+    const cuponData = JSON.parse(localStorage.getItem('cuponData'));
+    
+    if (cuponData?.codigo) {
+      document.getElementById('codigo-cupon').textContent = cuponData.codigo;
+      document.getElementById('disponibles').textContent = cuponData.disponibles;
+    } else {
+      document.getElementById('contenido-cupon').style.display = 'none';
+      document.getElementById('sin-cupones').style.display = 'block';
+    }
+
+    // Limpiar almacenamiento local
+    localStorage.removeItem('registroData');
+    localStorage.removeItem('cuponData');
   });
 }
