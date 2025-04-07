@@ -1,107 +1,77 @@
-// script.js - Versión mejorada
-// En tu script.js - Agrega al principio
+// URL de tu Google Apps Script (reemplaza con la tuya)
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz7VuHS6pC5tL6Gw6u-omAvIRXdDFbCUsGjBiPsYxUUwLN5qw6qexYmCFCuH4uTkT-I/exec";
+
 document.addEventListener('DOMContentLoaded', function() {
-  // Verifica si los elementos clave existen antes de continuar
-  if (!document.getElementById('registroForm') && 
-      !document.getElementById('encuestaForm') && 
-      !document.getElementById('codigo-cupon')) {
-    console.log('Elementos principales no encontrados, verificando extensiones...');
-    return;
+  // Manejo del formulario de registro
+  if (document.getElementById('registroForm')) {
+    document.getElementById('registroForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      // Guardar datos en sessionStorage para usarlos después
+      const formData = new FormData(this);
+      const registroData = {};
+      formData.forEach((value, key) => {
+        registroData[key] = value;
+      });
+      
+      sessionStorage.setItem('registroData', JSON.stringify(registroData));
+      
+      // Redirigir a la encuesta
+      window.location.href = 'encuesta.html';
+    });
   }
   
-  // El resto de tu código de inicialización aquí
-});
-// Configuración
-const API_URL = 'https://script.google.com/macros/s/AKfycbz7VuHS6pC5tL6Gw6u-omAvIRXdDFbCUsGjBiPsYxUUwLN5qw6qexYmCFCuH4uTkT-I/exec';
-const DEBUG = true; // Cambiar a false en producción
-
-// Utilidad para logging
-function debugLog(message) {
-
-    if (DEBUG) {
-        console.log('[DEBUG]', message);
-    }
-}
-
-// Inicialización segura
-function initApp() {
-    debugLog('Inicializando aplicación...');
-    
-    // Manejo del formulario de registro
-    const registroForm = document.getElementById('registroForm');
-    if (registroForm) {
-        debugLog('Formulario de registro encontrado');
-        registroForm.addEventListener('submit', handleRegistroSubmit);
-    } else {
-        debugLog('Formulario de registro NO encontrado');
-    }
-    
-    // Manejo del formulario de encuesta
-    const encuestaForm = document.getElementById('encuestaForm');
-    if (encuestaForm) {
-        debugLog('Formulario de encuesta encontrado');
-        encuestaForm.addEventListener('submit', handleEncuestaSubmit);
-    }
-    
-    // Mostrar cupón si estamos en esa página
-    if (document.getElementById('codigo-cupon')) {
-        debugLog('Página de cupón detectada');
-        mostrarCupon();
-    }
-}
-
-// Manejador de registro
-async function handleRegistroSubmit(e) {
-    e.preventDefault();
-    debugLog('Manejando envío de registro');
-    
-    const formData = {
-    action: 'registro',
-    numTicket: getValue('#numTicket'),
-    nombre: getValue('#nombre'),
-    email: getValue('#email'),
-    telefono: getValue('#telefono'),
-    conociste: getValue('#conociste')
-    };
-
-try {
-        const response = await enviarDatos(API_URL, formData);
-        if (response.success) {
-        sessionStorage.setItem('numTicket', formData.numTicket);
-        window.location.href = 'encuesta.html';
-        } else {
-        mostrarError(response.message || 'Error en el registro');
+  // Manejo del formulario de encuesta
+  if (document.getElementById('encuestaForm')) {
+    document.getElementById('encuestaForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      // Obtener datos del registro
+      const registroData = JSON.parse(sessionStorage.getItem('registroData'));
+      
+      // Obtener datos de la encuesta
+      const formData = new FormData(this);
+      const encuestaData = {};
+      formData.forEach((value, key) => {
+        encuestaData[key] = value;
+      });
+      
+      // Combinar datos
+      const allData = {...registroData, ...encuestaData};
+      
+      // Enviar a Google Sheets
+      fetch(GOOGLE_SCRIPT_URL, {
+        method: 'POST',
+        body: JSON.stringify(allData),
+        headers: {
+          'Content-Type': 'application/json'
         }
-    } catch (error) {
-        mostrarError('Error de conexión: ' + error.message);
-    }
-}
-
-// Función segura para obtener valores
-function getValue(selector) {
-    const element = document.querySelector(selector);
-    return element ? element.value : null;
-}
-
-// Función para mostrar errores
-function mostrarError(mensaje) {
-    const errorElement = document.getElementById('error-msg') || createErrorElement();
-    errorElement.textContent = mensaje;
-    errorElement.style.display = 'block';
-    }
-
-function createErrorElement() {
-    const div = document.createElement('div');
-    div.id = 'error-msg';
-    div.style.color = 'red';
-    div.style.margin = '10px 0';
-    document.body.prepend(div);
-    return div;
-}
-
-// Iniciar la aplicación cuando el DOM esté listo
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initApp);
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.result === 'success') {
+          // Guardar código de cupón y redirigir
+          sessionStorage.setItem('couponCode', data.coupon);
+          window.location.href = 'cupon.html';
+        } else {
+          alert('Error al enviar la encuesta. Por favor intenta nuevamente.');
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        alert('Error al enviar la encuesta. Por favor intenta nuevamente.');
+      });
+    });
+  }
+  
+  // Mostrar cupón en la página final
+  if (document.getElementById('codigo-cupon')) {
+    const couponCode = sessionStorage.getItem('couponCode');
+    if (couponCode) {
+      document.getElementById('codigo-cupon').textContent = couponCode;
     } else {
-    initApp();
+      document.getElementById('contenido-cupon').style.display = 'none';
+      document.getElementById('sin-cupones').style.display = 'block';
     }
+  }
+});
