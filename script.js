@@ -1,4 +1,16 @@
 // script.js - Versión mejorada
+// En tu script.js - Agrega al principio
+document.addEventListener('DOMContentLoaded', function() {
+  // Verifica si los elementos clave existen antes de continuar
+  if (!document.getElementById('registroForm') && 
+      !document.getElementById('encuestaForm') && 
+      !document.getElementById('codigo-cupon')) {
+    console.log('Elementos principales no encontrados, verificando extensiones...');
+    return;
+  }
+  
+  // El resto de tu código de inicialización aquí
+});
 // Configuración
 const API_URL = 'https://script.google.com/macros/s/AKfycbz7VuHS6pC5tL6Gw6u-omAvIRXdDFbCUsGjBiPsYxUUwLN5qw6qexYmCFCuH4uTkT-I/exec';
 const DEBUG = true; // Cambiar a false en producción
