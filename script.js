@@ -22,6 +22,7 @@ async function sendDataToSheet(data) {
     // Then make the POST request
     const response = await fetch(SCRIPT_URL, {
       method: 'POST',
+      mode: 'no-cors',
       headers: {
         'Content-Type': 'application/json'
       },
