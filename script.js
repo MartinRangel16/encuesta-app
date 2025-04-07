@@ -1,57 +1,104 @@
-document.addEventListener('DOMContentLoaded', function() {
-    const registroForm = document.getElementById('registroForm');
-    const encuestaForm = document.getElementById('encuestaForm');
-    const scriptURL = https://script.google.com/macros/s/AKfycbwQTFemL1JatyAoXSxqDp91HKfpI6vOT5yere7awveRQ9U4MRUtKsBlnEED8wkd93F_nA/exec'; // ¡REEMPLAZA CON TU URL REAL!
+const API_URL = 'https://script.google.com/macros/s/AKfycbyIUFJoaerPGevfdGcwvJFDHdHtnhANFDEWg7WWiqiJ1EJWnadUOPgOHwRSXSKILWHC/exec';
 
-    if (registroForm) {
-        registroForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            const formData = new FormData(registroForm);
-            const datosRegistro = {};
-            formData.forEach((value, key) => {
-                datosRegistro[key] = value;
-            });
-            localStorage.setItem('datosRegistro', JSON.stringify(datosRegistro));
-            console.log('Datos de registro guardados en localStorage:', datosRegistro);
-            console.log('Redirigiendo a encuesta.html...');
+// Manejo de errores mejorado
+function mostrarError(mensaje) {
+
+    console.error(mensaje);
+    const errorElement = document.getElementById('error-msg') || document.createElement('div');
+    errorElement.textContent = mensaje;
+    errorElement.style.color = 'red';
+    if (!document.getElementById('error-msg')) {
+    errorElement.id = 'error-msg';
+    document.body.prepend(errorElement);
+    }
+}
+
+// Función mejorada para enviar datos
+async function enviarDatos(endpoint, data) {
+    try {
+        const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    });
+    
+    if (!response.ok) {
+        throw new Error(`Error HTTP: ${response.status}`);
+    }
+    
+    return await response.json();
+    } catch (error) {
+    mostrarError(`Error de conexión: ${error.message}`);
+    throw error;
+    }
+}
+
+// Registro
+if (document.getElementById('registroForm')) {
+    document.getElementById('registroForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const formData = {
+        action: 'registro',
+        numTicket: document.getElementById('numTicket').value,
+        nombre: document.getElementById('nombre').value,
+        email: document.getElementById('email').value,
+        telefono: document.getElementById('telefono').value,
+        conociste: document.getElementById('conociste').value
+        };
+    
+    try {
+        const result = await enviarDatos(API_URL, formData);
+        if (result.success) {
+            sessionStorage.setItem('numTicket', formData.numTicket);
             window.location.href = 'encuesta.html';
-        });
-    }
+        } else {
+            mostrarError(result.message || 'Error en el registro');
+        }
+        } catch (error) {
+        mostrarError('No se pudo completar el registro');
+        }
+    });
+}
 
-    if (encuestaForm) {
-        encuestaForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            const datosRegistroGuardados = localStorage.getItem('datosRegistro');
-            if (!datosRegistroGuardados) {
-                alert('Por favor, completa el registro primero.');
-                window.location.href = '/';
-                return;
-            }
-            const datosRegistro = JSON.parse(datosRegistroGuardados);
-            const formData = new FormData(encuestaForm);
-            const datosEncuesta = {};
-            formData.forEach((value, key) => {
-                datosEncuesta[key] = value;
-            });
-            const datosTotales = {...datosRegistro, ...datosEncuesta};
+// Encuesta
+if (document.getElementById('encuestaForm')) {
+    document.getElementById('encuestaForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const formData = {
+        action: 'encuesta',
+        numTicket: sessionStorage.getItem('numTicket'),
+        p1: document.querySelector('input[name="p1"]:checked')?.value,
+        // ... recoge todas las preguntas igual ...
+        sugerencias: document.querySelector('textarea[name="sugerencias"]').value
+    };
+    
+    try {
+        const result = await enviarDatos(API_URL, formData);
+        if (result.success) {
+            sessionStorage.setItem('cupon', result.cupon);
+            window.location.href = 'cupon.html';
+        } else {
+            mostrarError(result.message || 'Error al enviar encuesta');
+        }
+        } catch (error) {
+        mostrarError('No se pudo enviar la encuesta');
+        }
+    });
+}
 
-            fetch(scriptURL, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(datosTotales)
-            })
-            .then(response => response.json())
-            .then(data => {
-                console.log('Respuesta del script:', data);
-                localStorage.removeItem('datosRegistro');
-                alert('¡Gracias por completar la encuesta!');
-            })
-            .catch((error) => {
-                console.error('Error al enviar los datos:', error);
-                alert('Hubo un error al enviar los datos. Por favor, inténtalo de nuevo.');
-            });
-        });
+// Mostrar cupón
+if (document.getElementById('codigo-cupon')) {
+    const cupon = sessionStorage.getItem('cupon');
+    if (cupon) {
+        document.getElementById('codigo-cupon').textContent = cupon;
+        document.getElementById('contenido-cupon').style.display = 'block';
+        document.getElementById('sin-cupones').style.display = 'none';
+    } else {
+        document.getElementById('contenido-cupon').style.display = 'none';
+        document.getElementById('sin-cupones').style.display = 'block';
     }
-});
+}
