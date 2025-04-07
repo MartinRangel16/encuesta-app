@@ -1,4 +1,4 @@
-const API_URL = 'https://script.google.com/macros/s/AKfycbyIUFJoaerPGevfdGcwvJFDHdHtnhANFDEWg7WWiqiJ1EJWnadUOPgOHwRSXSKILWHC/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbz7VuHS6pC5tL6Gw6u-omAvIRXdDFbCUsGjBiPsYxUUwLN5qw6qexYmCFCuH4uTkT-I/exec';
 
 async function enviarDatos(data) {
   try {
