@@ -49,6 +49,7 @@ async function submitEncuesta(formData) {
   try {
     const response = await fetch(SCRIPT_URL, {
       method: 'POST',
+       mode: 'no-cors',
       headers: {
         'Content-Type': 'application/json'
       },
