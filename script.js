@@ -1,69 +1,68 @@
 // URL de tu Google Apps Script (reemplaza con la tuya)
 const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz7VuHS6pC5tL6Gw6u-omAvIRXdDFbCUsGjBiPsYxUUwLN5qw6qexYmCFCuH4uTkT-I/exec";
-
-// Manejo del formulario de encuesta
-if (document.getElementById('encuestaForm')) {
-  document.getElementById('encuestaForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    
-    // Obtener datos del registro
-    const registroData = JSON.parse(sessionStorage.getItem('registroData'));
-    
-    // Obtener datos de la encuesta
-    const formData = new FormData(this);
-    const encuestaData = {};
-    formData.forEach((value, key) => {
-      encuestaData[key] = value;
-    });
-    
-    // Combinar datos
-    const allData = {...registroData, ...encuestaData};
-    
-    // Crear formulario dinámico para enviar los datos
-    const form = document.createElement('form');
-    form.action = "https://script.google.com/macros/s/AKfycbz7VuHS6pC5tL6Gw6u-omAvIRXdDFbCUsGjBiPsYxUUwLN5qw6qexYmCFCuH4uTkT-I/exec";
-    form.method = 'POST';
-    form.target = 'hiddenFrame';
-    form.style.display = 'none';
-    
-    // Agregar los datos al formulario
-    for (const key in allData) {
-      if (allData.hasOwnProperty(key)) {
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = key;
-        input.value = allData[key];
-        form.appendChild(input);
-      }
-    }
-    
-    // Crear iframe oculto para la respuesta
+// Función para enviar datos mediante un formulario oculto
+function enviarDatos(datos) {
+  return new Promise((resolve) => {
+    // Crear iframe para la respuesta
     const iframe = document.createElement('iframe');
-    iframe.name = 'hiddenFrame';
+    iframe.name = 'hidden-response';
     iframe.style.display = 'none';
+    
+    // Escuchar cuando cargue el iframe
     iframe.onload = function() {
       try {
-        const response = JSON.parse(iframe.contentWindow.document.body.textContent);
-        if (response.result === 'success') {
-          sessionStorage.setItem('couponCode', response.coupon);
-          window.location.href = 'cupon.html';
-        } else {
-          alert('Error al enviar la encuesta. Por favor intenta nuevamente.');
-        }
-      } catch (e) {
-        console.error('Error parsing response:', e);
-        alert('Error al procesar la respuesta. Por favor intenta nuevamente.');
+        const response = JSON.parse(iframe.contentDocument.body.textContent);
+        resolve(response);
+      } catch(e) {
+        resolve({ error: "Error al procesar respuesta" });
       }
     };
     
+    // Crear formulario oculto
+    const form = document.createElement('form');
+    form.action = GOOGLE_SCRIPT_URL;
+    form.method = 'POST';
+    form.target = 'hidden-response';
+    form.style.display = 'none';
+    
+    // Agregar campo con los datos
+    const input = document.createElement('input');
+    input.name = 'data';
+    input.value = JSON.stringify(datos);
+    form.appendChild(input);
+    
+    // Agregar al documento y enviar
     document.body.appendChild(iframe);
     document.body.appendChild(form);
     form.submit();
     
-    // Limpiar después de un tiempo
+    // Limpiar después de 5 segundos
     setTimeout(() => {
       document.body.removeChild(iframe);
       document.body.removeChild(form);
     }, 5000);
   });
 }
+
+// Uso en tu formulario de encuesta
+document.getElementById('encuestaForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  
+  // Obtener datos del formulario
+  const registroData = JSON.parse(sessionStorage.getItem('registroData'));
+  const encuestaData = {};
+  new FormData(this).forEach((value, key) => encuestaData[key] = value);
+  
+  // Combinar datos
+  const allData = { ...registroData, ...encuestaData };
+  
+  // Enviar y manejar respuesta
+  const response = await enviarDatos(allData);
+  
+  if (response.coupon) {
+    sessionStorage.setItem('couponCode', response.coupon);
+    window.location.href = 'cupon.html';
+  } else {
+    alert(response.error || 'Error al enviar la encuesta');
+  }
+});
