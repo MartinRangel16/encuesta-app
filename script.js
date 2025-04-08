@@ -113,7 +113,20 @@ if (document.getElementById('registroForm')) {
     const email = document.getElementById('email').value;
     const telefono = document.getElementById('telefono').value || 'No proporcionado';
     const conociste = document.getElementById('conociste').value;
+
+      // Validación de ticket
+    if (!validarCampoNumerico(numTicket)) {
+      alert("El número de ticket solo debe contener dígitos numéricos");
+      document.getElementById('numTicket').focus();
+      return;
+    }
     
+    // Validación de teléfono
+    if (telefono && !validarCampoNumerico(telefono, 10)) {
+      alert("El teléfono debe contener exactamente 10 dígitos");
+      document.getElementById('telefono').focus();
+      return;
+    }
     // Validar si el ticket ya existe
     const validacionTicket = await validarTicket(numTicket);
     
