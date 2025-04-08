@@ -113,19 +113,6 @@ if (document.getElementById('registroForm')) {
     const email = document.getElementById('email').value;
     const telefono = document.getElementById('telefono').value || 'No proporcionado';
     const conociste = document.getElementById('conociste').value;
-      const telefonoRegex = /^\d{10}$/; // Expresión regular para exactamente 10 dígitos
-
-    if (numTicket === '' || isNaN(numTicket)) {
-        alert('El número de ticket debe ser un valor numérico.');
-        e.preventDefault(); // Detiene el envío del formulario
-        return;
-    }
-
-    if (!telefonoRegex.test(telefono)) {
-        alert('El número de teléfono debe contener exactamente 10 dígitos.');
-        e.preventDefault(); // Detiene el envío del formulario
-        return;
-    }
 
 
     // Validar si el ticket ya existe
