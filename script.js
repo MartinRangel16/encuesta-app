@@ -14,6 +14,7 @@ const firebaseConfig = {
     appId: "1:692171791223:web:f1e799d155820ac7389f72",
     measurementId: "G-MF4K1QHYXG"
     };
+
 // Inicializar Firebase
 if (!firebase.apps.length) {
   firebase.initializeApp(firebaseConfig);
@@ -27,36 +28,122 @@ const datosEncuesta = {
   respuestas: null
 };
 
-// Función para generar código de cupón
-function generarCodigoCupon() {
-  const caracteres = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let resultado = '';
-  for (let i = 0; i < 8; i++) {
-    resultado += caracteres.charAt(Math.floor(Math.random() * caracteres.length));
+// ================= FUNCIONES UTILITARIAS =================
+
+function mostrarError(elemento, mensaje) {
+  const errorDiv = document.getElementById('errorMessage') || document.createElement('div');
+  errorDiv.id = 'errorMessage';
+  errorDiv.className = 'error-message';
+  errorDiv.textContent = mensaje;
+  errorDiv.style.display = 'block';
+  
+  if (!document.getElementById('errorMessage')) {
+    elemento.parentNode.insertBefore(errorDiv, elemento.nextSibling);
   }
-  return resultado;
 }
+
+function ocultarError() {
+  const errorDiv = document.getElementById('errorMessage');
+  if (errorDiv) errorDiv.style.display = 'none';
+}
+
+// ================= VALIDACIÓN DE TICKETS =================
+
+async function validarTicket(numTicket) {
+  try {
+    const querySnapshot = await db.collection('encuestasCompletas')
+      .where('registro.numTicket', '==', numTicket)
+      .limit(1)
+      .get();
+
+    if (!querySnapshot.empty) {
+      const doc = querySnapshot.docs[0];
+      return {
+        existe: true,
+        datos: doc.data(),
+        mensaje: `El ticket ${numTicket} ya fue registrado el ${doc.data().registro.fechaRegistro.toDate().toLocaleDateString()}`
+      };
+    }
+    return { existe: false };
+  } catch (error) {
+    console.error("Error al validar ticket:", error);
+    return {
+      existe: true,
+      mensaje: "Error al verificar el ticket. Por favor intenta nuevamente."
+    };
+  }
+}
+
+// Validación en tiempo real del ticket
+if (document.getElementById('numTicket')) {
+  document.getElementById('numTicket').addEventListener('blur', async function() {
+    const numTicket = this.value.trim();
+    const feedbackDiv = document.getElementById('ticketFeedback') || document.createElement('div');
+    feedbackDiv.id = 'ticketFeedback';
+    
+    if (!document.getElementById('ticketFeedback')) {
+      this.parentNode.appendChild(feedbackDiv);
+    }
+    
+    if (numTicket.length > 0) {
+      const validacion = await validarTicket(numTicket);
+      if (validacion.existe) {
+        feedbackDiv.textContent = '⚠ ' + validacion.mensaje;
+        feedbackDiv.style.color = 'red';
+        document.getElementById('submitBtn').disabled = true;
+      } else {
+        feedbackDiv.textContent = '✓ Ticket válido';
+        feedbackDiv.style.color = 'green';
+        document.getElementById('submitBtn').disabled = false;
+      }
+    }
+  });
+}
+
+// ================= MANEJO DE FORMULARIOS =================
 
 // Manejar registro (index.html)
 if (document.getElementById('registroForm')) {
-  document.getElementById('registroForm').addEventListener('submit', (e) => {
+  document.getElementById('registroForm').addEventListener('submit', async (e) => {
     e.preventDefault();
+    ocultarError();
     
-    // Guardar datos de registro en el objeto temporal
-    datosEncuesta.registro = {
-      numTicket: document.getElementById('numTicket').value,
-      nombre: document.getElementById('nombre').value,
-      email: document.getElementById('email').value,
-      telefono: document.getElementById('telefono').value || 'No proporcionado',
-      conociste: document.getElementById('conociste').value,
-      fechaRegistro: new Date()
-    };
+    const numTicket = document.getElementById('numTicket').value;
+    const nombre = document.getElementById('nombre').value;
+    const email = document.getElementById('email').value;
+    const telefono = document.getElementById('telefono').value || 'No proporcionado';
+    const conociste = document.getElementById('conociste').value;
     
-    // Guardar en sessionStorage por si se recarga la página
-    sessionStorage.setItem('datosRegistro', JSON.stringify(datosEncuesta.registro));
+    // Validar si el ticket ya existe
+    const validacionTicket = await validarTicket(numTicket);
     
-    // Redirigir a la encuesta
-    window.location.href = 'encuesta.html';
+    if (validacionTicket.existe) {
+      mostrarError(document.getElementById('numTicket'), validacionTicket.mensaje);
+      document.getElementById('numTicket').focus();
+      return;
+    }
+    
+    try {
+      // Guardar datos en el objeto temporal
+      datosEncuesta.registro = {
+        numTicket,
+        nombre,
+        email,
+        telefono,
+        conociste,
+        fechaRegistro: firebase.firestore.FieldValue.serverTimestamp()
+      };
+      
+      // Guardar en sessionStorage
+      sessionStorage.setItem('datosRegistro', JSON.stringify(datosEncuesta.registro));
+      
+      // Redirigir a la encuesta
+      window.location.href = 'encuesta.html';
+    } catch (error) {
+      console.error("Error al guardar registro: ", error);
+      mostrarError(document.getElementById('submitBtn'), 
+        "Ocurrió un error al registrar tus datos. Por favor intenta nuevamente.");
+    }
   });
 }
 
@@ -70,53 +157,59 @@ if (document.getElementById('encuestaForm')) {
   
   document.getElementById('encuestaForm').addEventListener('submit', async (e) => {
     e.preventDefault();
+    ocultarError();
     
     if (!datosEncuesta.registro) {
-      alert("No se encontraron datos de registro. Por favor completa el formulario de registro primero.");
-      window.location.href = 'index.html';
+      mostrarError(document.querySelector('form'), 
+        "No se encontraron datos de registro. Por favor completa el formulario de registro primero.");
+      setTimeout(() => window.location.href = 'index.html', 3000);
       return;
     }
     
     // Recoger respuestas de la encuesta
     datosEncuesta.respuestas = {
-      p1: document.querySelector('input[name="p1"]:checked').value,
-      p2: document.querySelector('input[name="p2"]:checked').value,
-      p3: document.querySelector('input[name="p3"]:checked').value,
-      p4: document.querySelector('input[name="p4"]:checked').value,
-      p5: document.querySelector('input[name="p5"]:checked').value,
-      p6: document.querySelector('input[name="p6"]:checked').value,
-      p7: document.querySelector('input[name="p7"]:checked').value,
+      p1: document.querySelector('input[name="p1"]:checked')?.value || 'No respondida',
+      p2: document.querySelector('input[name="p2"]:checked')?.value || 'No respondida',
+      p3: document.querySelector('input[name="p3"]:checked')?.value || 'No respondida',
+      p4: document.querySelector('input[name="p4"]:checked')?.value || 'No respondida',
+      p5: document.querySelector('input[name="p5"]:checked')?.value || 'No respondida',
+      p6: document.querySelector('input[name="p6"]:checked')?.value || 'No respondida',
+      p7: document.querySelector('input[name="p7"]:checked')?.value || 'No respondida',
       p8: document.querySelector('input[name="p8"]:checked')?.value || 'No respondida',
-      sugerencias: document.querySelector('textarea[name="sugerencias"]').value,
-      fechaEncuesta: new Date()
+      sugerencias: document.querySelector('textarea[name="sugerencias"]').value || 'Sin sugerencias',
+      fechaEncuesta: firebase.firestore.FieldValue.serverTimestamp()
     };
     
     try {
       // Guardar datos completos en Firestore
-      const docRef = await db.collection('encuestasCompletas').add(datosEncuesta);
-      
-      // Generar cupón
-      const codigoCupon = generarCodigoCupon();
-      const cuponData = {
-        codigo: codigoCupon,
-        email: datosEncuesta.registro.email,
-        valor: 50,
-        usado: false,
-        fechaGeneracion: new Date(),
-        fechaExpiracion: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 días
-        encuestaId: docRef.id
-      };
-      
-      await db.collection('cupones').add(cuponData);
+      await db.collection('encuestasCompletas').add(datosEncuesta);
       
       // Limpiar sessionStorage
       sessionStorage.removeItem('datosRegistro');
       
       // Redirigir a página de agradecimiento
-      window.location.href = `cupon.html?cupon=${codigoCupon}`;
+      window.location.href = 'cupon.html';
     } catch (error) {
       console.error("Error al guardar encuesta: ", error);
-      alert("Ocurrió un error al enviar tu encuesta. Por favor intenta nuevamente.");
+      mostrarError(document.querySelector('form'), 
+        "Ocurrió un error al enviar tu encuesta. Por favor intenta nuevamente.");
     }
+  });
+}
+
+// Página de agradecimiento (gracias.html)
+if (window.location.pathname.includes('gracias.html')) {
+  document.addEventListener('DOMContentLoaded', () => {
+    // Mostrar mensaje simple de agradecimiento
+    const agradecimientoDiv = document.getElementById('agradecimiento');
+    if (agradecimientoDiv) {
+      agradecimientoDiv.innerHTML = `
+        <h2>¡Gracias por completar nuestra encuesta!</h2>
+        <p>Tu opinión es muy valiosa para nosotros.</p>
+        <p>Número de ticket registrado: ${sessionStorage.getItem('lastTicket') || 'No disponible'}</p>
+      `;
+    }
+    // Limpiar sessionStorage
+    sessionStorage.removeItem('datosRegistro');
   });
 }
