@@ -101,7 +101,12 @@ if (document.getElementById('numTicket')) {
 }
 
 // ================= MANEJO DE FORMULARIOS =================
-
+// Validación de campos numéricos
+function validarCampoNumerico(valor, longitud = null) {
+  if (!/^\d+$/.test(valor)) return false;
+  if (longitud && valor.length !== longitud) return false;
+  return true;
+}
 // Manejar registro (index.html)
 if (document.getElementById('registroForm')) {
   document.getElementById('registroForm').addEventListener('submit', async (e) => {
