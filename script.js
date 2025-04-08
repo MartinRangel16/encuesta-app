@@ -101,37 +101,33 @@ if (document.getElementById('numTicket')) {
 }
 
 // ================= MANEJO DE FORMULARIOS =================
-// Validación de campos numéricos
-function validarCampoNumerico(valor, longitud = null) {
-  if (!/^\d+$/.test(valor)) return false;
-  if (longitud && valor.length !== longitud) return false;
-  return true;
-}
+
 // Manejar registro (index.html)
 if (document.getElementById('registroForm')) {
   document.getElementById('registroForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     ocultarError();
     
-    const numTicket = document.getElementById('numTicket').value.trim();
+    const numTicket = document.getElementById('numTicket').value;
     const nombre = document.getElementById('nombre').value;
     const email = document.getElementById('email').value;
-    const telefono = document.getElementById('telefono').value.trim() || 'No proporcionado';
+    const telefono = document.getElementById('telefono').value || 'No proporcionado';
     const conociste = document.getElementById('conociste').value;
+      const telefonoRegex = /^\d{10}$/; // Expresión regular para exactamente 10 dígitos
 
-      // Validación de ticket
-    if (!validarCampoNumerico(numTicket)) {
-      alert("El número de ticket solo debe contener dígitos numéricos");
-      document.getElementById('numTicket').focus();
-      return;
+    if (numTicket === '' || isNaN(numTicket)) {
+        alert('El número de ticket debe ser un valor numérico.');
+        e.preventDefault(); // Detiene el envío del formulario
+        return;
     }
-    
-    // Validación de teléfono
-    if (telefono && !validarCampoNumerico(telefono, 10)) {
-      alert("El teléfono debe contener exactamente 10 dígitos");
-      document.getElementById('telefono').focus();
-      return;
+
+    if (!telefonoRegex.test(telefono)) {
+        alert('El número de teléfono debe contener exactamente 10 dígitos.');
+        e.preventDefault(); // Detiene el envío del formulario
+        return;
     }
+
+
     // Validar si el ticket ya existe
     const validacionTicket = await validarTicket(numTicket);
     
