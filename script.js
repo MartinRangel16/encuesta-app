@@ -14,156 +14,109 @@ const firebaseConfig = {
     appId: "1:692171791223:web:f1e799d155820ac7389f72",
     measurementId: "G-MF4K1QHYXG"
     };
-
 // Inicializar Firebase
-const app = firebase.initializeApp(firebaseConfig);
+if (!firebase.apps.length) {
+  firebase.initializeApp(firebaseConfig);
+}
+
 const db = firebase.firestore();
 
-// =============================================
-// Funciones Auxiliares
-// =============================================
-function getRadioValue(name) {
-  const selected = document.querySelector(`input[name="${name}"]:checked`);
-  if (!selected) {
-    const questionElement = selected.closest('.pregunta');
-    questionElement.style.backgroundColor = '#fff3f3';
-    setTimeout(() => questionElement.style.backgroundColor = '', 2000);
-    throw new Error(`Por favor responde: ${name}`);
+// Objeto global para almacenar datos temporalmente
+const datosEncuesta = {
+  registro: null,
+  respuestas: null
+};
+
+// Función para generar código de cupón
+function generarCodigoCupon() {
+  const caracteres = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let resultado = '';
+  for (let i = 0; i < 8; i++) {
+    resultado += caracteres.charAt(Math.floor(Math.random() * caracteres.length));
   }
-  return selected.value;
+  return resultado;
 }
 
-function showError(message) {
-  const errorElement = document.getElementById('error-message') || document.createElement('div');
-  errorElement.id = 'error-message';
-  errorElement.style.color = 'red';
-  errorElement.textContent = message;
-  document.body.prepend(errorElement);
-}
-
-// =============================================
-// Manejo del Formulario de Registro (index.html)
-// =============================================
+// Manejar registro (index.html)
 if (document.getElementById('registroForm')) {
-  document.getElementById('registroForm').addEventListener('submit', async (e) => {
+  document.getElementById('registroForm').addEventListener('submit', (e) => {
     e.preventDefault();
-    const submitBtn = document.querySelector('#registroForm button[type="submit"]');
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'Registrando...';
-
-    try {
-      const formData = {
-        numTicket: document.getElementById('numTicket').value.trim(),
-        nombre: document.getElementById('nombre').value.trim(),
-        email: document.getElementById('email').value.trim(),
-        telefono: document.getElementById('telefono').value.trim() || null,
-        conociste: document.getElementById('conociste').value,
-        timestamp: firebase.firestore.FieldValue.serverTimestamp()
-      };
-
-      // Validar campos obligatorios
-      if (!formData.numTicket || !formData.nombre || !formData.email) {
-        throw new Error('Todos los campos marcados como * son obligatorios');
-      }
-
-      // Guardar en Firestore
-      await db.collection('registros').add(formData);
-      
-      // Guardar datos temporalmente para la encuesta
-      localStorage.setItem('registroData', JSON.stringify(formData));
-      window.location.href = 'encuesta.html';
-
-    } catch (error) {
-      showError(error.message);
-      submitBtn.disabled = false;
-      submitBtn.textContent = 'Continuar a la encuesta';
-    }
+    
+    // Guardar datos de registro en el objeto temporal
+    datosEncuesta.registro = {
+      numTicket: document.getElementById('numTicket').value,
+      nombre: document.getElementById('nombre').value,
+      email: document.getElementById('email').value,
+      telefono: document.getElementById('telefono').value || 'No proporcionado',
+      conociste: document.getElementById('conociste').value,
+      fechaRegistro: new Date()
+    };
+    
+    // Guardar en sessionStorage por si se recarga la página
+    sessionStorage.setItem('datosRegistro', JSON.stringify(datosEncuesta.registro));
+    
+    // Redirigir a la encuesta
+    window.location.href = 'encuesta.html';
   });
 }
 
-// =============================================
-// Manejo del Formulario de Encuesta (encuesta.html)
-// =============================================
+// Manejar encuesta (encuesta.html)
 if (document.getElementById('encuestaForm')) {
+  // Recuperar datos de registro si existen
+  const datosGuardados = sessionStorage.getItem('datosRegistro');
+  if (datosGuardados) {
+    datosEncuesta.registro = JSON.parse(datosGuardados);
+  }
+  
   document.getElementById('encuestaForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const submitBtn = document.querySelector('#encuestaForm button[type="submit"]');
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'Enviando...';
-
-    try {
-      const registroData = JSON.parse(localStorage.getItem('registroData'));
-      if (!registroData) throw new Error('Datos de registro no encontrados');
-
-      // Obtener respuestas
-      const encuestaData = {
-        p1: getRadioValue('p1'),
-        p2: getRadioValue('p2'),
-        p3: getRadioValue('p3'),
-        p4: getRadioValue('p4'),
-        p5: getRadioValue('p5'),
-        p6: getRadioValue('p6'),
-        p7: getRadioValue('p7'),
-        p8: getRadioValue('p8'),
-        sugerencias: document.querySelector('textarea[name="sugerencias"]').value.trim(),
-        timestamp: firebase.firestore.FieldValue.serverTimestamp()
-      };
-
-      // Usar Batch para transacción atómica
-      const batch = db.batch();
-      const encuestaRef = db.collection('encuestas').doc();
-      
-      batch.set(encuestaRef, { ...registroData, ...encuestaData });
-
-      // Verificar y actualizar cupones (solo si hay disponibilidad)
-      const cuponesRef = db.collection('cupones').doc('contador');
-      const cuponesDoc = await cuponesRef.get();
-      const cuponesDisponibles = cuponesDoc.data().disponibles;
-
-      if (cuponesDisponibles > 0) {
-        const cupon = "SHNT" + Math.floor(1000 + Math.random() * 9000);
-        batch.set(db.collection('cuponesGenerados').doc(encuestaRef.id), { 
-          codigo: cupon,
-          usado: false
-        });
-        batch.update(cuponesRef, { 
-          disponibles: firebase.firestore.FieldValue.increment(-1),
-          usados: firebase.firestore.FieldValue.increment(1)
-        });
-        localStorage.setItem('cuponData', JSON.stringify({ 
-          codigo: cupon, 
-          disponibles: cuponesDisponibles - 1 
-        }));
-      }
-
-      await batch.commit();
-      window.location.href = 'cupon.html';
-
-    } catch (error) {
-      showError(`Error: ${error.message}`);
-      submitBtn.disabled = false;
-      submitBtn.textContent = 'Enviar encuesta';
-    }
-  });
-}
-
-// =============================================
-// Mostrar Cupón (cupon.html)
-// =============================================
-if (document.getElementById('contenido-cupon')) {
-  document.addEventListener('DOMContentLoaded', async () => {
-    const cuponData = JSON.parse(localStorage.getItem('cuponData'));
     
-    if (cuponData?.codigo) {
-      document.getElementById('codigo-cupon').textContent = cuponData.codigo;
-      document.getElementById('disponibles').textContent = cuponData.disponibles;
-    } else {
-      document.getElementById('contenido-cupon').style.display = 'none';
-      document.getElementById('sin-cupones').style.display = 'block';
+    if (!datosEncuesta.registro) {
+      alert("No se encontraron datos de registro. Por favor completa el formulario de registro primero.");
+      window.location.href = 'index.html';
+      return;
     }
-
-    // Limpiar almacenamiento local
-    localStorage.removeItem('registroData');
-    localStorage.removeItem('cuponData');
+    
+    // Recoger respuestas de la encuesta
+    datosEncuesta.respuestas = {
+      p1: document.querySelector('input[name="p1"]:checked').value,
+      p2: document.querySelector('input[name="p2"]:checked').value,
+      p3: document.querySelector('input[name="p3"]:checked').value,
+      p4: document.querySelector('input[name="p4"]:checked').value,
+      p5: document.querySelector('input[name="p5"]:checked').value,
+      p6: document.querySelector('input[name="p6"]:checked').value,
+      p7: document.querySelector('input[name="p7"]:checked').value,
+      p8: document.querySelector('input[name="p8"]:checked')?.value || 'No respondida',
+      sugerencias: document.querySelector('textarea[name="sugerencias"]').value,
+      fechaEncuesta: new Date()
+    };
+    
+    try {
+      // Guardar datos completos en Firestore
+      const docRef = await db.collection('encuestasCompletas').add(datosEncuesta);
+      
+      // Generar cupón
+      const codigoCupon = generarCodigoCupon();
+      const cuponData = {
+        codigo: codigoCupon,
+        email: datosEncuesta.registro.email,
+        valor: 50,
+        usado: false,
+        fechaGeneracion: new Date(),
+        fechaExpiracion: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 días
+        encuestaId: docRef.id
+      };
+      
+      await db.collection('cupones').add(cuponData);
+      
+      // Limpiar sessionStorage
+      sessionStorage.removeItem('datosRegistro');
+      
+      // Redirigir a página de agradecimiento
+      window.location.href = `cupon.html?cupon=${codigoCupon}`;
+    } catch (error) {
+      console.error("Error al guardar encuesta: ", error);
+      alert("Ocurrió un error al enviar tu encuesta. Por favor intenta nuevamente.");
+    }
   });
 }
