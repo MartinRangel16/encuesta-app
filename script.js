@@ -1,4 +1,4 @@
-/ script.js - Versión mejorada con validaciones y seguridad
+// script.js - Versión mejorada con validaciones y seguridad
 
 /*********************
  * CONFIGURACIÓN FIREBASE
@@ -218,3 +218,4 @@ if (document.readyState === 'loading') {
 } else {
     initApp();
 }
+
