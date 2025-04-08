@@ -113,10 +113,10 @@ if (document.getElementById('registroForm')) {
     e.preventDefault();
     ocultarError();
     
-    const numTicket = document.getElementById('numTicket').value;
+    const numTicket = document.getElementById('numTicket').value.trim();
     const nombre = document.getElementById('nombre').value;
     const email = document.getElementById('email').value;
-    const telefono = document.getElementById('telefono').value || 'No proporcionado';
+    const telefono = document.getElementById('telefono').value.trim() || 'No proporcionado';
     const conociste = document.getElementById('conociste').value;
 
       // Validación de ticket
