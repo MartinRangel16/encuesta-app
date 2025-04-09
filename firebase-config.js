@@ -1,6 +1,4 @@
 // firebase-config.js
-import { initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
 const firebaseConfig = {
     apiKey: "AIzaSyBbQ9V1EeAMFqShg_ScqO3ALE2UsGXRSjc",
     authDomain: "encuestashanty12.firebaseapp.com",
@@ -11,11 +9,7 @@ const firebaseConfig = {
     measurementId: "G-MF4K1QHYXG"
     };
 // Inicializa Firebase
-//firebase.initializeApp(firebaseConfig);
-
-// Inicialización explícita
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-
-// Exporta los servicios que necesites
-export { db };
+if (!firebase.apps.length) {
+  firebase.initializeApp(firebaseConfig);
+}
+const db = firebase.firestore();
