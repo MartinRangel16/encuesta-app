@@ -4,12 +4,8 @@
  * CONFIGURACIÓN FIREBASE
  *********************/
 const DEBUG = true;
-
-
-if (!firebase.apps.length) {
-   const db = firebase.firestore();
- }
-
+const db = firebase.firestore();
+ 
 
 
 // Objeto global para almacenar datos temporalmente
