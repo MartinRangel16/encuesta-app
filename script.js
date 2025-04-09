@@ -1,5 +1,5 @@
 // script.js - Versión mejorada con validaciones y seguridad
-import { db } from './firebase-config.js';
+
 /*********************
  * CONFIGURACIÓN FIREBASE
  *********************/
