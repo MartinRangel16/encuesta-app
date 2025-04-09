@@ -1,11 +1,8 @@
 // script.js - Versión mejorada con validaciones y seguridad
-
 /*********************
  * CONFIGURACIÓN FIREBASE
  *********************/
 const DEBUG = true;
-
-
 
 // Objeto global para almacenar datos temporalmente
 const datosEncuesta = {
