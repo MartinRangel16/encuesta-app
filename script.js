@@ -7,10 +7,10 @@ const DEBUG = true;
 
 
 if (!firebase.apps.length) {
-   firebase.initializeApp(firebaseConfig);
+   const db = firebase.firestore();
  }
 
-const db = firebase.firestore();
+
 
 // Objeto global para almacenar datos temporalmente
 const datosEncuesta = {
