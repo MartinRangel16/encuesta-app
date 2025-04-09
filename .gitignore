@@ -1,0 +1,4 @@
+# Archivos a ignorar
+firebase-config.js
+.env
+node_modules/
