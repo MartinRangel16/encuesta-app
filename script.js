@@ -181,7 +181,7 @@ if (document.getElementById('encuestaForm')) {
 }
 
 // Página de agradecimiento (gracias.html)
-if (window.location.pathname.includes('gracias.html')) {
+if (window.location.pathname.includes('cupon.html')) {
   document.addEventListener('DOMContentLoaded', () => {
     // Mostrar mensaje simple de agradecimiento
     const agradecimientoDiv = document.getElementById('agradecimiento');
